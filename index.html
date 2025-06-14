@@ -1,0 +1,30 @@
+<video id="video" width="300" autoplay></video>
+<canvas id="canvas" style="display:none;"></canvas>
+<button onclick="captureAndSend()">Capture & Send</button>
+
+<script>
+navigator.mediaDevices.getUserMedia({ video: true })
+  .then(stream => {
+    document.getElementById("video").srcObject = stream;
+  });
+
+function captureAndSend() {
+  const canvas = document.getElementById('canvas');
+  const video = document.getElementById('video');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+
+  canvas.toBlob(blob => {
+    const formData = new FormData();
+    formData.append('file', blob, 'frame.jpg');
+
+    fetch('https://your-streamlit-cloud-url.streamlit.app/upload', {
+      method: 'POST',
+      body: formData
+    }).then(response => {
+      response.json().then(data => alert("Prediction: " + data.prediction));
+    });
+  }, 'image/jpeg');
+}
+</script>
