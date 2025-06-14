@@ -43,7 +43,7 @@ if stop:
 
 # --- Webcam Streaming ---
 if st.session_state.camera_on:
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
 
     if not cap.isOpened():
         st.error("🚫 Gagal mengakses kamera. Pastikan kamera tersedia dan tidak digunakan aplikasi lain.")
