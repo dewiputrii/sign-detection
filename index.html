@@ -19,7 +19,7 @@ function captureAndSend() {
     const formData = new FormData();
     formData.append('file', blob, 'frame.jpg');
 
-    fetch('https://your-streamlit-cloud-url.streamlit.app/upload', {
+    fetch('https://sign-detection-mx39r5e7stptjeaggxcqm9.streamlit.app/upload', {
       method: 'POST',
       body: formData
     }).then(response => {
