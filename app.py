@@ -10,7 +10,12 @@ from streamlit_webrtc import webrtc_streamer, WebRtcMode
 import mediapipe as mp
 from tensorflow.keras.models import load_model
 
-# --- Config Logging ---
+
+# --- Streamlit UI ---
+st.set_page_config(page_title="ASL Real-Time Detection", layout="centered")
+st.title("ASL Real-Time Detection")
+
+
 logger = logging.getLogger(__name__)
 
 # --- Load Model ---
@@ -21,23 +26,18 @@ def load_trained_model():
 model = load_trained_model()
 labels = [chr(i) for i in range(65, 91)]  # A-Z
 
-# --- MediaPipe Setup ---
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
 mp_drawing = mp.solutions.drawing_utils
 
-# --- Streamlit App UI ---
-st.set_page_config(page_title="ASL Real-Time Detection", layout="centered")
-st.title("ASL Real-Time Detection via Webcam")
-
-# --- Queue for prediction results ---
+# --- prediction results ---
 class Detection(NamedTuple):
     label: str
     score: float
 
 result_queue: "queue.Queue[List[Detection]]" = queue.Queue()
 
-# --- Video Frame Callback ---
+# --- Video Frame ---
 def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
     image = frame.to_ndarray(format="bgr24")
     frame = cv2.flip(image, 1)
