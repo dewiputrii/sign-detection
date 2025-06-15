@@ -20,7 +20,7 @@ def load_trained_model():
     return load_model("best_asl_model.h5")
 
 model = load_trained_model()
-labels = [chr(i) for i in range(65, 91)]  # A-Z
+labels = [chr(i) for i in range(65, 91)] 
 
 class Detection(NamedTuple):
     label: str
@@ -34,9 +34,9 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
 
     h, w, _ = frame.shape
 
-    box_size = 300
-    x1 = 50 
-    y1 = h // 2 - box_size // 2 
+    box_size = 200
+    x1 = 20  
+    y1 = 20  
     x2 = x1 + box_size
     y2 = y1 + box_size
 
@@ -65,12 +65,22 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
         (0, 255, 0),
         2
     )
+    cv2.putText(
+        frame,
+        'Arahkan tangan ke kotak',
+        (x1, y2 + 30),
+        cv2.FONT_HERSHEY_SIMPLEX,
+        0.7,
+        (255, 255, 255),
+        2
+    )
 
     while not result_queue.empty():
         result_queue.get()
     result_queue.put([Detection(label=pred_letter, score=score)])
 
     return av.VideoFrame.from_ndarray(frame, format="bgr24")
+
 
 
 # --- Streamer Setup ---
