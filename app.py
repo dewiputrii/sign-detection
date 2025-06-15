@@ -10,19 +10,21 @@ from streamlit_webrtc import webrtc_streamer, WebRtcMode
 import mediapipe as mp
 from tensorflow.keras.models import load_model
 
+# --- Streamlit UI ---
 st.set_page_config(page_title="ASL Real-Time Detection", layout="centered")
 st.title("ASL Real-Time Detection")
 
 logger = logging.getLogger(__name__)
 
+# --- Load model with cache ---
 @st.cache_resource
 def load_trained_model():
-    model = load_model('best_asl_model.h5')
-    return model
+    return load_model("best_asl_model.h5")
 
 model = load_trained_model()
 labels = [chr(i) for i in range(65, 91)]  # A-Z
 
+# --- MediaPipe Setup ---
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(
     static_image_mode=False,
@@ -31,12 +33,14 @@ hands = mp_hands.Hands(
 )
 mp_drawing = mp.solutions.drawing_utils
 
+# --- Data Structure ---
 class Detection(NamedTuple):
     label: str
     score: float
 
 result_queue: "queue.Queue[List[Detection]]" = queue.Queue()
 
+# --- Frame Processing ---
 def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
     image = frame.to_ndarray(format="bgr24")
     frame = cv2.flip(image, 1)
@@ -62,19 +66,22 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
             y_max = min(h, y_max)
 
             roi = frame[y_min:y_max, x_min:x_max]
-            if roi.size != 0:
-                try:
-                    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
-                    resized = cv2.resize(gray, (28, 28))
-                    normalized = resized / 255.0
-                    reshaped = normalized.reshape(1, 28, 28, 1)
-                    pred = model.predict(reshaped, verbose=0)
-                    score = float(np.max(pred))
-                    pred_letter = labels[np.argmax(pred)]
-                except Exception as e:
-                    logger.warning(f"Prediction error: {e}")
-                    pred_letter = '?'
+            if roi.size == 0:
+                continue  # skip frame if ROI is invalid
 
+            try:
+                gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+                resized = cv2.resize(gray, (28, 28))
+                normalized = resized / 255.0
+                reshaped = normalized.reshape(1, 28, 28, 1)
+                pred = model.predict(reshaped, verbose=0)
+                score = float(np.max(pred))
+                pred_letter = labels[np.argmax(pred)]
+            except Exception as e:
+                logger.warning(f"Prediction error: {e}")
+                pred_letter = '?'
+
+            # Tampilkan prediksi pada frame
             cv2.putText(
                 frame,
                 f'Prediction: {pred_letter}',
@@ -87,23 +94,31 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
 
             mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
+    # Hapus isi lama di queue agar tidak menumpuk
+    while not result_queue.empty():
+        result_queue.get()
+
     result_queue.put([Detection(label=pred_letter, score=score)])
     return av.VideoFrame.from_ndarray(frame, format="bgr24")
 
+# --- Streamer Setup ---
 webrtc_ctx = webrtc_streamer(
     key="asl-detection",
     mode=WebRtcMode.SENDRECV,
     video_frame_callback=video_frame_callback,
-    media_stream_constraints={"video": True, "audio": False},
-    async_processing=True
-    # client_settings=ClientSettings(
-    #     media_stream_constraints={"video": True, "audio": False},
-    #     rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-    # )
+    media_stream_constraints={
+        "video": {
+            "width": {"ideal": 640},
+            "height": {"ideal": 480},
+            "frameRate": {"ideal": 15}
+        },
+        "audio": False
+    },
+    async_processing=True,
 )
 
+# --- Result Table ---
 if st.checkbox("Tampilkan hasil prediksi", value=True):
-    if webrtc_ctx.state.playing:
-        if not result_queue.empty():
-            result = result_queue.get()
-            st.table(result)
+    if webrtc_ctx.state.playing and not result_queue.empty():
+        result = result_queue.get()
+        st.table(result)
