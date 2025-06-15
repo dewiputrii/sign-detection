@@ -6,7 +6,7 @@ import av
 import cv2
 import numpy as np
 import streamlit as st
-from streamlit_webrtc import webrtc_streamer, WebRtcMode
+from streamlit_webrtc import webrtc_streamer, WebRtcMode, ClientSettings
 import mediapipe as mp
 from tensorflow.keras.models import load_model
 
@@ -15,10 +15,10 @@ st.title("ASL Real-Time Detection")
 
 logger = logging.getLogger(__name__)
 
-# Load model
 @st.cache_resource
 def load_trained_model():
-    return load_model('best_asl_model.h5')
+    model = load_model('best_asl_model.h5')
+    return model
 
 model = load_trained_model()
 labels = [chr(i) for i in range(65, 91)]  # A-Z
@@ -88,7 +88,6 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
             mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
     result_queue.put([Detection(label=pred_letter, score=score)])
-
     return av.VideoFrame.from_ndarray(frame, format="bgr24")
 
 webrtc_ctx = webrtc_streamer(
@@ -97,6 +96,10 @@ webrtc_ctx = webrtc_streamer(
     video_frame_callback=video_frame_callback,
     media_stream_constraints={"video": True, "audio": False},
     async_processing=True,
+    client_settings=ClientSettings(
+        media_stream_constraints={"video": True, "audio": False},
+        rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+    )
 )
 
 if st.checkbox("Tampilkan hasil prediksi", value=True):
