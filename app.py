@@ -34,9 +34,10 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
 
     h, w, _ = frame.shape
 
+    # Kotak di kiri atas tapi agak ke bawah supaya teks terlihat
     box_size = 200
-    x1 = 20  
-    y1 = 20  
+    x1 = 20  # margin kiri
+    y1 = 80  # geser ke bawah dari atas
     x2 = x1 + box_size
     y2 = y1 + box_size
 
@@ -55,11 +56,12 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
     except Exception as e:
         logger.warning(f"Prediction error: {e}")
 
+    # Gambar kotak dan label prediksi
     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
     cv2.putText(
         frame,
         f'{pred_letter} ({score:.2f})',
-        (x1, y1 - 10),
+        (x1, y2 + 30),  # teks di bawah kotak
         cv2.FONT_HERSHEY_SIMPLEX,
         1,
         (0, 255, 0),
@@ -68,7 +70,7 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
     cv2.putText(
         frame,
         'Arahkan tangan ke kotak',
-        (x1, y2 + 30),
+        (x1, y2 + 70),  # teks instruksi di bawah teks prediksi
         cv2.FONT_HERSHEY_SIMPLEX,
         0.7,
         (255, 255, 255),
