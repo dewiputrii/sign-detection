@@ -6,7 +6,7 @@ import av
 import cv2
 import numpy as np
 import streamlit as st
-from streamlit_webrtc import webrtc_streamer, WebRtcMode, ClientSettings
+from streamlit_webrtc import webrtc_streamer, WebRtcMode
 import mediapipe as mp
 from tensorflow.keras.models import load_model
 
@@ -95,11 +95,11 @@ webrtc_ctx = webrtc_streamer(
     mode=WebRtcMode.SENDRECV,
     video_frame_callback=video_frame_callback,
     media_stream_constraints={"video": True, "audio": False},
-    async_processing=True,
-    client_settings=ClientSettings(
-        media_stream_constraints={"video": True, "audio": False},
-        rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
-    )
+    async_processing=True
+    # client_settings=ClientSettings(
+    #     media_stream_constraints={"video": True, "audio": False},
+    #     rtc_configuration={"iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]}
+    # )
 )
 
 if st.checkbox("Tampilkan hasil prediksi", value=True):
