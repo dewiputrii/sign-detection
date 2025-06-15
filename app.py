@@ -15,7 +15,6 @@ st.title("ASL Real-Time Detection")
 
 logger = logging.getLogger(__name__)
 
-# --- Load model with cache ---
 @st.cache_resource
 def load_trained_model():
     return load_model("best_asl_model.h5")
@@ -23,27 +22,23 @@ def load_trained_model():
 model = load_trained_model()
 labels = [chr(i) for i in range(65, 91)]  # A-Z
 
-# --- Data Structure ---
 class Detection(NamedTuple):
     label: str
     score: float
 
 result_queue: "queue.Queue[List[Detection]]" = queue.Queue()
 
-# --- Frame Processing ---
 def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
     image = frame.to_ndarray(format="bgr24")
     frame = cv2.flip(image, 1)
 
     h, w, _ = frame.shape
 
-    # Tentukan area kotak tetap di tengah frame
-    box_size = 200
-    cx, cy = w // 2, h // 2 + 100  # posisi agak ke bawah dari tengah
-    x1 = cx - box_size // 2
-    y1 = cy - box_size // 2
-    x2 = cx + box_size // 2
-    y2 = cy + box_size // 2
+    box_size = 300
+    x1 = 50 
+    y1 = h // 2 - box_size // 2 
+    x2 = x1 + box_size
+    y2 = y1 + box_size
 
     roi = frame[y1:y2, x1:x2]
     pred_letter = '?'
@@ -60,7 +55,6 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
     except Exception as e:
         logger.warning(f"Prediction error: {e}")
 
-    # Gambar kotak tetap dan prediksi
     cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
     cv2.putText(
         frame,
@@ -72,12 +66,12 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
         2
     )
 
-    # Bersihkan queue dan isi baru
     while not result_queue.empty():
         result_queue.get()
     result_queue.put([Detection(label=pred_letter, score=score)])
 
     return av.VideoFrame.from_ndarray(frame, format="bgr24")
+
 
 # --- Streamer Setup ---
 webrtc_ctx = webrtc_streamer(
@@ -95,7 +89,6 @@ webrtc_ctx = webrtc_streamer(
     async_processing=True,
 )
 
-# --- Result Table ---
 if st.checkbox("Tampilkan hasil prediksi", value=True):
     if webrtc_ctx.state.playing and not result_queue.empty():
         result = result_queue.get()
