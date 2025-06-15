@@ -10,15 +10,12 @@ from streamlit_webrtc import webrtc_streamer, WebRtcMode
 import mediapipe as mp
 from tensorflow.keras.models import load_model
 
-
-# --- Streamlit UI ---
 st.set_page_config(page_title="ASL Real-Time Detection", layout="centered")
 st.title("ASL Real-Time Detection")
 
-
 logger = logging.getLogger(__name__)
 
-# --- Load Model ---
+# Load model
 @st.cache_resource
 def load_trained_model():
     return load_model('best_asl_model.h5')
@@ -27,17 +24,19 @@ model = load_trained_model()
 labels = [chr(i) for i in range(65, 91)]  # A-Z
 
 mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7)
+hands = mp_hands.Hands(
+    static_image_mode=False,
+    max_num_hands=1,
+    min_detection_confidence=0.7
+)
 mp_drawing = mp.solutions.drawing_utils
 
-# --- prediction results ---
 class Detection(NamedTuple):
     label: str
     score: float
 
 result_queue: "queue.Queue[List[Detection]]" = queue.Queue()
 
-# --- Video Frame ---
 def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
     image = frame.to_ndarray(format="bgr24")
     frame = cv2.flip(image, 1)
@@ -72,11 +71,19 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
                     pred = model.predict(reshaped, verbose=0)
                     score = float(np.max(pred))
                     pred_letter = labels[np.argmax(pred)]
-                except Exception:
+                except Exception as e:
+                    logger.warning(f"Prediction error: {e}")
                     pred_letter = '?'
 
-            cv2.putText(frame, f'Prediction: {pred_letter}', (10, 50),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(
+                frame,
+                f'Prediction: {pred_letter}',
+                (10, 50),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                (0, 255, 0),
+                2
+            )
 
             mp_drawing.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
@@ -84,7 +91,6 @@ def video_frame_callback(frame: av.VideoFrame) -> av.VideoFrame:
 
     return av.VideoFrame.from_ndarray(frame, format="bgr24")
 
-# --- WebRTC Streamer ---
 webrtc_ctx = webrtc_streamer(
     key="asl-detection",
     mode=WebRtcMode.SENDRECV,
@@ -93,10 +99,8 @@ webrtc_ctx = webrtc_streamer(
     async_processing=True,
 )
 
-# --- Display Prediction ---
 if st.checkbox("Tampilkan hasil prediksi", value=True):
     if webrtc_ctx.state.playing:
-        prediction_placeholder = st.empty()
-        while True:
+        if not result_queue.empty():
             result = result_queue.get()
-            prediction_placeholder.table(result)
+            st.table(result)
